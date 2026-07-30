@@ -1,0 +1,291 @@
+import { useEffect, useState } from 'react';
+import { Dialog } from './Dialog';
+import { Button } from './Button';
+import { useAddStudentDialog } from '../context/AddStudentContext';
+import { useToast } from '../context/ToastContext';
+import { useActivities } from '../hooks/queries/useActivities';
+import { useCreateStudent, useUpdateStudent } from '../hooks/queries/useStudents';
+import { ApiError } from '../api/client';
+import type { Gender, StudentFormPayload, StudentStatus } from '../types/api';
+
+const CLASSES = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+const SECTIONS = ['A', 'B', 'C'];
+
+interface FormState {
+  admissionNo: string;
+  name: string;
+  standard: string;
+  section: string;
+  gender: Gender | '';
+  dob: string;
+  parentName: string;
+  phone: string;
+  email: string;
+  address: string;
+  status?: StudentStatus;
+}
+
+const EMPTY_FORM: FormState = {
+  admissionNo: '',
+  name: '',
+  standard: CLASSES[0],
+  section: SECTIONS[0],
+  gender: '',
+  dob: '',
+  parentName: '',
+  phone: '',
+  email: '',
+  address: '',
+};
+
+export function AddStudentDialog() {
+  const { open, editingStudent, closeDialog } = useAddStudentDialog();
+  const { showToast } = useToast();
+  const { data: activitiesResp } = useActivities({ limit: 100 });
+  const activities = activitiesResp?.data ?? [];
+  const createStudent = useCreateStudent();
+  const updateStudent = useUpdateStudent();
+
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const isEditMode = !!editingStudent;
+  const isSubmitting = createStudent.isPending || updateStudent.isPending;
+
+  useEffect(() => {
+    if (editingStudent) {
+      setForm({
+        admissionNo: editingStudent.admissionNo,
+        name: editingStudent.name,
+        standard: editingStudent.standard,
+        section: editingStudent.section,
+        gender: editingStudent.gender ?? '',
+        dob: editingStudent.dob ? editingStudent.dob.slice(0, 10) : '',
+        parentName: editingStudent.parentName,
+        phone: editingStudent.phone,
+        email: editingStudent.email,
+        address: editingStudent.address,
+        status: editingStudent.status,
+      });
+      setSelectedActivities(editingStudent.activities.map((a) => a._id));
+    } else {
+      setForm(EMPTY_FORM);
+      setSelectedActivities([]);
+    }
+    setPhoto(null);
+    setError(null);
+  }, [editingStudent, open]);
+
+  function handleClose() {
+    closeDialog();
+  }
+
+  function toggleActivity(id: string) {
+    setSelectedActivities((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
+  }
+
+  const canSave = form.name.trim().length > 0 && !!form.standard && !!form.section;
+
+  async function handleSave() {
+    if (!canSave) return;
+    setError(null);
+
+    const payload: StudentFormPayload = {
+      name: form.name.trim(),
+      standard: form.standard,
+      section: form.section,
+      activities: selectedActivities,
+    };
+    if (form.admissionNo.trim()) payload.admissionNo = form.admissionNo.trim();
+    if (form.gender) payload.gender = form.gender;
+    if (form.dob) payload.dob = form.dob;
+    if (form.parentName.trim()) payload.parentName = form.parentName.trim();
+    if (form.phone.trim()) payload.phone = form.phone.trim();
+    if (form.email.trim()) payload.email = form.email.trim();
+    if (form.address.trim()) payload.address = form.address.trim();
+    if (isEditMode && form.status) payload.status = form.status;
+
+    try {
+      if (isEditMode && editingStudent) {
+        await updateStudent.mutateAsync({ id: editingStudent._id, payload, photo });
+        showToast(`${form.name} updated successfully`);
+      } else {
+        await createStudent.mutateAsync({ payload, photo });
+        showToast(`${form.name} added successfully`);
+      }
+      handleClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    }
+  }
+
+  return (
+    <Dialog open={open} title={isEditMode ? 'Edit Student' : 'Add Student'} onClose={handleClose}>
+      <div className="form-grid">
+        {error && (
+          <div className="login-error form-field full">
+            {error}
+          </div>
+        )}
+
+        <div className="form-field full">
+          <label className="form-label">Full Name</label>
+          <input
+            className="input"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="e.g. Aarav Sharma"
+          />
+        </div>
+        <div className="form-field">
+          <label className="form-label">Standard</label>
+          <select
+            className="select"
+            value={form.standard}
+            onChange={(e) => setForm({ ...form, standard: e.target.value })}
+          >
+            {CLASSES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-field">
+          <label className="form-label">Section</label>
+          <select
+            className="select"
+            value={form.section}
+            onChange={(e) => setForm({ ...form, section: e.target.value })}
+          >
+            {SECTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-field">
+          <label className="form-label">Admission No. (optional)</label>
+          <input
+            className="input"
+            value={form.admissionNo}
+            onChange={(e) => setForm({ ...form, admissionNo: e.target.value })}
+            placeholder="Auto-generated if left blank"
+          />
+        </div>
+        <div className="form-field">
+          <label className="form-label">Date of Birth (optional)</label>
+          <input
+            type="date"
+            className="input"
+            value={form.dob}
+            onChange={(e) => setForm({ ...form, dob: e.target.value })}
+          />
+        </div>
+        <div className="form-field">
+          <label className="form-label">Gender (optional)</label>
+          <select
+            className="select"
+            value={form.gender}
+            onChange={(e) => setForm({ ...form, gender: e.target.value as Gender | '' })}
+          >
+            <option value="">Not specified</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div className="form-field">
+          <label className="form-label">Parent Name (optional)</label>
+          <input
+            className="input"
+            value={form.parentName}
+            onChange={(e) => setForm({ ...form, parentName: e.target.value })}
+            placeholder="Mr. Ramesh Sharma"
+          />
+        </div>
+        <div className="form-field">
+          <label className="form-label">Phone (optional)</label>
+          <input
+            className="input"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            placeholder="9876543210"
+          />
+        </div>
+        <div className="form-field full">
+          <label className="form-label">Email (optional)</label>
+          <input
+            type="email"
+            className="input"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="parent@email.com"
+          />
+        </div>
+        <div className="form-field full">
+          <label className="form-label">Address (optional)</label>
+          <input
+            className="input"
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+          />
+        </div>
+        {isEditMode && (
+          <div className="form-field full">
+            <label className="form-label">Status</label>
+            <select
+              className="select"
+              value={form.status ?? 'active'}
+              onChange={(e) => setForm({ ...form, status: e.target.value as StudentStatus })}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          </div>
+        )}
+        <div className="form-field full">
+          <label className="form-label">Photo (optional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            className="input"
+            onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          />
+        </div>
+        <div className="form-field full">
+          <label className="form-label">Activities (optional)</label>
+          <div className="checkbox-grid">
+            {activities.map((a) => (
+              <label
+                key={a._id}
+                className={`checkbox-chip${selectedActivities.includes(a._id) ? ' checked' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedActivities.includes(a._id)}
+                  onChange={() => toggleActivity(a._id)}
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+                {a.name}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="dialog-actions">
+        <Button variant="secondary" onClick={handleClose} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSave} disabled={isSubmitting || !canSave}>
+          {isSubmitting ? 'Saving…' : isEditMode ? 'Save Changes' : 'Save Student'}
+        </Button>
+      </div>
+    </Dialog>
+  );
+}
