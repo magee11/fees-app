@@ -1,7 +1,7 @@
 import * as tokenStorage from './tokenStorage';
 import type { UserDTO } from '../types/api';
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1').replace(/\/+$/, '');
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://fees-app-backend.onrender.com').replace(/\/+$/, '');
 export const API_ORIGIN = new URL(API_BASE_URL).origin;
 
 export interface PaginationMeta {
