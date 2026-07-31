@@ -4,12 +4,15 @@ import { Search, Upload, Download, Plus, ChevronDown, ChevronRight, Pencil, Tras
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
+import { ImportStudentsDialog } from '../components/ImportStudentsDialog';
 import { useAddStudentDialog } from '../context/AddStudentContext';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useActivities } from '../hooks/queries/useActivities';
 import { useDeleteStudent, useStudentPaymentHistory, useStudents } from '../hooks/queries/useStudents';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { exportStudents } from '../api/students';
+import { triggerBlobDownload } from '../utils/download';
 import { formatCurrency } from '../utils/currency';
 import { formatDate } from '../utils/date';
 import { gradientForId } from '../utils/gradient';
@@ -63,6 +66,8 @@ export function Students() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const { openDialog } = useAddStudentDialog();
   const { showToast } = useToast();
   const { isAdmin } = useAuth();
@@ -114,6 +119,22 @@ export function Students() {
     }
   }
 
+  async function handleExport() {
+    setIsExporting(true);
+    try {
+      const { blob, filename } = await exportStudents({
+        search: search || undefined,
+        activityId: filterActivity === 'all' ? undefined : filterActivity,
+        status: filterStatus === 'all' ? undefined : filterStatus,
+      });
+      triggerBlobDownload(blob, filename);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to export students');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <div className="fade-up">
       <div className="page-header">
@@ -122,13 +143,13 @@ export function Students() {
           <div className="page-subtitle">{meta ? `${meta.total} students found` : '…'}</div>
         </div>
         <div className="page-actions">
-          <Button variant="secondary" onClick={() => showToast('Import is not yet supported')}>
+          <Button variant="secondary" onClick={() => setImportOpen(true)}>
             <Upload size={15} />
             Import
           </Button>
-          <Button variant="secondary" onClick={() => showToast('Export is not yet supported')}>
+          <Button variant="secondary" onClick={handleExport} disabled={isExporting}>
             <Download size={15} />
-            Export
+            {isExporting ? 'Exporting…' : 'Export'}
           </Button>
           <Button onClick={() => openDialog()}>
             <Plus size={15} />
@@ -142,7 +163,7 @@ export function Students() {
           <Search size={15} />
           <input
             className="input"
-            placeholder="Search by name, admission no, or phone…"
+            placeholder="Search by name or admission no…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
@@ -204,17 +225,20 @@ export function Students() {
                     <span className="student-admission">{s.admissionNo}</span>
                   </span>
                 </span>
-                <span>
+                <span data-label="Class">
                   {s.standard}-{s.section}
                 </span>
-                <span className="student-activities">
+                <span className="student-activities" data-label="Activities">
                   {s.activities.length > 0 ? s.activities.map((a) => a.name).join(', ') : '—'}
                 </span>
-                <span>{formatCurrency(monthlyFee)}</span>
-                <span style={{ color: (s.outstanding ?? 0) > 0 ? 'var(--warning)' : 'var(--text)' }}>
+                <span data-label="Monthly Fee">{formatCurrency(monthlyFee)}</span>
+                <span
+                  data-label="Balance"
+                  style={{ color: (s.outstanding ?? 0) > 0 ? 'var(--warning)' : 'var(--text)' }}
+                >
                   {formatCurrency(s.outstanding ?? 0)}
                 </span>
-                <span>
+                <span data-label="Status">
                   <Badge tone={STATUS_TONE[s.status]} dot>
                     {s.status[0].toUpperCase() + s.status.slice(1)}
                   </Badge>
@@ -267,6 +291,8 @@ export function Students() {
           </div>
         )}
       </div>
+
+      <ImportStudentsDialog open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
 }

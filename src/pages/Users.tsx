@@ -91,8 +91,8 @@ export function Users() {
                   <span className="student-admission">{u.email}</span>
                 </span>
               </span>
-              <span style={{ textTransform: 'capitalize' }}>{u.role}</span>
-              <span>
+              <span data-label="Role" style={{ textTransform: 'capitalize' }}>{u.role}</span>
+              <span data-label="Status">
                 <button
                   className="badge-toggle"
                   onClick={() => handleToggleActive(u)}
@@ -104,7 +104,9 @@ export function Users() {
                   </Badge>
                 </button>
               </span>
-              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{formatDateTime(u.lastLoginAt)}</span>
+              <span data-label="Last Login" style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                {formatDateTime(u.lastLoginAt)}
+              </span>
               <span className="student-row-actions">
                 <button className="icon-btn" style={{ width: 28, height: 28 }} aria-label="Edit user" onClick={() => setFormTarget(u)}>
                   <Pencil size={13} />

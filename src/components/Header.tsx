@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Plus } from 'lucide-react';
+import { Search, Bell, Plus, Menu } from 'lucide-react';
 import { useAddStudentDialog } from '../context/AddStudentContext';
 import { useDashboard } from '../hooks/queries/useDashboard';
 import { useSettings } from '../hooks/queries/useSettings';
@@ -19,7 +19,11 @@ interface NotificationItem {
   studentName?: string;
 }
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -85,6 +89,10 @@ export function Header() {
 
   return (
     <header className="header">
+      <button className="menu-toggle" onClick={onMenuClick} aria-label="Toggle menu">
+        <Menu size={19} strokeWidth={1.8} />
+      </button>
+
       <div className="header-search" ref={searchRef}>
         <Search size={16} className="search-icon" />
         <input

@@ -29,55 +29,64 @@ const NAV_ITEMS = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
   const { theme, toggleTheme } = useTheme();
   const { user, isAdmin, logout } = useAuth();
   const { data: settings } = useSettings();
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-logo">
-        <div className="sidebar-logo-mark">FF</div>
-        <div>
-          <div className="sidebar-logo-text">FeeFlow</div>
-          <div className="sidebar-logo-sub">{settings?.schoolName || 'Activity Fee Manager'}</div>
-        </div>
-      </div>
-
-      <nav className="sidebar-nav">
-        {NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
-          >
-            <Icon size={17} strokeWidth={1.8} />
-            {label}
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="sidebar-footer">
-        {user && (
-          <div className="sidebar-user">
-            <Avatar name={user.name} gradient={gradientForId(user._id)} size={32} />
-            <div className="sidebar-user-info">
-              <span className="sidebar-user-name">{user.name}</span>
-              <span className="sidebar-user-role">{user.role}</span>
-            </div>
-            <button className="icon-btn" onClick={() => logout()} aria-label="Log out">
-              <LogOut size={15} />
-            </button>
+    <>
+      {open && <div className="sidebar-backdrop" onClick={onClose} />}
+      <aside className={`sidebar${open ? ' open' : ''}`}>
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-mark">FF</div>
+          <div>
+            <div className="sidebar-logo-text">FeeFlow</div>
+            <div className="sidebar-logo-sub">{settings?.schoolName || 'Activity Fee Manager'}</div>
           </div>
-        )}
-        <button className="theme-toggle" onClick={toggleTheme}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
-            {theme === 'dark' ? 'Dark mode' : 'Light mode'}
-          </span>
-          <span>Toggle</span>
-        </button>
-      </div>
-    </aside>
+        </div>
+
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin).map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={onClose}
+              className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+            >
+              <Icon size={17} strokeWidth={1.8} />
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          {user && (
+            <div className="sidebar-user">
+              <Avatar name={user.name} gradient={gradientForId(user._id)} size={32} />
+              <div className="sidebar-user-info">
+                <span className="sidebar-user-name">{user.name}</span>
+                <span className="sidebar-user-role">{user.role}</span>
+              </div>
+              <button className="icon-btn" onClick={() => logout()} aria-label="Log out">
+                <LogOut size={15} />
+              </button>
+            </div>
+          )}
+          <button className="theme-toggle" onClick={toggleTheme}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
+              {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+            </span>
+            <span>Toggle</span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

@@ -53,6 +53,10 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* Safety net: nothing in the app should intentionally cause the page itself to
+     scroll horizontally on narrow viewports — inner elements (charts, tables) use
+     their own overflow-x: auto where content genuinely needs to scroll. */
+  overflow-x: hidden;
 }
 
 body {

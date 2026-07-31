@@ -45,7 +45,6 @@ export interface StudentActivityRef {
 }
 
 export type StudentStatus = 'active' | 'inactive' | 'overdue';
-export type Gender = 'M' | 'F' | 'Other';
 
 interface StudentBase {
   _id: string;
@@ -54,13 +53,6 @@ interface StudentBase {
   name: string;
   standard: string;
   section: string;
-  gender?: Gender;
-  dob?: string;
-  parentName: string;
-  phone: string;
-  email: string;
-  address: string;
-  photo: string;
   joinedDate: string;
   status: StudentStatus;
   createdAt: string;
@@ -78,12 +70,6 @@ export interface StudentFormPayload {
   name: string;
   standard: string;
   section: string;
-  gender?: Gender;
-  dob?: string;
-  parentName?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
   joinedDate?: string;
   activities?: string[];
   status?: StudentStatus;
@@ -232,6 +218,13 @@ export interface ReportParams {
   year?: number;
   month?: number;
   activityId?: string;
+}
+
+export interface ImportStudentsResult {
+  totalRows: number;
+  created: number;
+  failed: number;
+  errors: { row: number; message: string }[];
 }
 
 export interface SettingsDTO {

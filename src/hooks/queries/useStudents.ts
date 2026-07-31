@@ -53,8 +53,7 @@ function useInvalidateAfterStudentMutation() {
 export function useCreateStudent() {
   const invalidate = useInvalidateAfterStudentMutation();
   return useMutation({
-    mutationFn: ({ payload, photo }: { payload: StudentFormPayload; photo?: File | null }) =>
-      studentsApi.createStudent(payload, photo),
+    mutationFn: (payload: StudentFormPayload) => studentsApi.createStudent(payload),
     onSuccess: invalidate,
   });
 }
@@ -62,8 +61,8 @@ export function useCreateStudent() {
 export function useUpdateStudent() {
   const invalidate = useInvalidateAfterStudentMutation();
   return useMutation({
-    mutationFn: ({ id, payload, photo }: { id: string; payload: Partial<StudentFormPayload>; photo?: File | null }) =>
-      studentsApi.updateStudent(id, payload, photo),
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<StudentFormPayload> }) =>
+      studentsApi.updateStudent(id, payload),
     onSuccess: invalidate,
   });
 }
@@ -73,5 +72,15 @@ export function useDeleteStudent() {
   return useMutation({
     mutationFn: (id: string) => studentsApi.deleteStudent(id),
     onSuccess: invalidate,
+  });
+}
+
+export function useImportStudents() {
+  const invalidate = useInvalidateAfterStudentMutation();
+  return useMutation({
+    mutationFn: (file: File) => studentsApi.importStudents(file),
+    onSuccess: (result) => {
+      if (result.created > 0) invalidate();
+    },
   });
 }
