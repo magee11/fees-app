@@ -2,7 +2,9 @@ import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate, type Location } from 'react-router-dom';
 import { Lock, Mail } from 'lucide-react';
 import { Button } from '../components/Button';
+import { Spinner } from '../components/Spinner';
 import { useAuth } from '../context/AuthContext';
+import { useDelayedFlag } from '../hooks/useDelayedFlag';
 import { ApiError } from '../api/client';
 
 export function Login() {
@@ -13,6 +15,7 @@ export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation() as Location & { state?: { from?: Location } };
+  const showColdStartHint = useDelayedFlag(isSubmitting, 5000);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -78,8 +81,21 @@ export function Login() {
           </div>
 
           <Button type="submit" className="full-width-btn" disabled={isSubmitting}>
-            {isSubmitting ? 'Signing in…' : 'Sign In'}
+            {isSubmitting ? (
+              <>
+                <Spinner size={14} color="#fff" />
+                Signing in…
+              </>
+            ) : (
+              'Sign In'
+            )}
           </Button>
+
+          {showColdStartHint && (
+            <div className="login-cold-start-hint">
+              Still working — the server may be waking up from idle, this can take up to a minute.
+            </div>
+          )}
         </form>
       </div>
     </div>

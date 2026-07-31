@@ -179,6 +179,77 @@ export async function requestBlob(
   return { blob, filename };
 }
 
+interface UploadOptions {
+  onProgress?: (percent: number) => void;
+  isRetry?: boolean;
+}
+
+/**
+ * multipart upload with real upload-progress reporting — fetch() has no portable
+ * way to observe request-body upload progress, so this uses XMLHttpRequest instead
+ * for the two flows that actually need a progress bar (student import, logo
+ * upload), while everything else keeps using the simpler fetch-based `request()`.
+ */
+export function uploadWithProgress<T>(
+  path: string,
+  formData: FormData,
+  opts: UploadOptions = {},
+): Promise<{ data: T }> {
+  const { onProgress, isRetry = false } = opts;
+  const accessToken = tokenStorage.getAccessToken();
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}${path}`);
+    if (accessToken) xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
+    };
+
+    xhr.onerror = () => reject(new ApiError('Network error during upload', 0));
+
+    xhr.onload = async () => {
+      let json: { success?: boolean; message?: string; errors?: ApiFieldError[]; data?: T } | null = null;
+      try {
+        json = JSON.parse(xhr.responseText);
+      } catch {
+        // non-JSON response — json stays null, handled as a generic failure below
+      }
+
+      if (xhr.status === 401 && !isRetry) {
+        try {
+          if (!refreshInFlight) {
+            refreshInFlight = refreshAccessToken().finally(() => {
+              refreshInFlight = null;
+            });
+          }
+          await refreshInFlight;
+          resolve(uploadWithProgress<T>(path, formData, { onProgress, isRetry: true }));
+        } catch (err) {
+          tokenStorage.clearAll();
+          onAuthFailure?.();
+          reject(err);
+        }
+        return;
+      }
+
+      if (xhr.status < 200 || xhr.status >= 300 || !json?.success) {
+        if (xhr.status === 401) {
+          tokenStorage.clearAll();
+          onAuthFailure?.();
+        }
+        reject(new ApiError(json?.message ?? `Request failed (${xhr.status})`, xhr.status, json?.errors ?? []));
+        return;
+      }
+
+      resolve({ data: json.data as T });
+    };
+
+    xhr.send(formData);
+  });
+}
+
 export const apiGet = <T>(path: string, params?: Record<string, unknown>) => request<T>(path, { method: 'GET', params });
 export const apiPost = <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body });
 export const apiPut = <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body });

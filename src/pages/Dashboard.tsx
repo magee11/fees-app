@@ -11,6 +11,7 @@ import { AreaLineChart } from '../components/charts/AreaLineChart';
 import { DonutChart } from '../components/charts/DonutChart';
 import { Heatmap } from '../components/charts/Heatmap';
 import { Avatar } from '../components/Avatar';
+import { PageLoader } from '../components/PageLoader';
 import { useDashboard } from '../hooks/queries/useDashboard';
 import { formatCurrency } from '../utils/currency';
 import { monthShort } from '../utils/months';
@@ -22,11 +23,7 @@ export function Dashboard() {
   const { data, isLoading, isError, refetch } = useDashboard();
 
   if (isLoading) {
-    return (
-      <div className="fade-up empty-state" style={{ padding: '80px 0' }}>
-        Loading dashboard…
-      </div>
-    );
+    return <PageLoader label="Loading dashboard…" />;
   }
 
   if (isError || !data) {

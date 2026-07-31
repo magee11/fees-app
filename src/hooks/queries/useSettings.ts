@@ -24,7 +24,8 @@ export function useUpdateSettings() {
 export function useUploadLogo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => settingsApi.uploadLogo(file),
+    mutationFn: ({ file, onProgress }: { file: File; onProgress?: (percent: number) => void }) =>
+      settingsApi.uploadLogo(file, onProgress),
     onSuccess: (data) => queryClient.setQueryData(settingsKeys.all, data),
   });
 }

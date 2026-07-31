@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FileSpreadsheet, FileText, Calendar, TrendingUp, Wallet, IndianRupee } from 'lucide-react';
 import { Button } from '../components/Button';
 import { KpiCard } from '../components/KpiCard';
+import { PageLoader } from '../components/PageLoader';
 import { useToast } from '../context/ToastContext';
 import { useDashboard } from '../hooks/queries/useDashboard';
 import { useReport } from '../hooks/queries/useReports';
@@ -103,7 +104,7 @@ export function Reports() {
               <div className="card-title">Revenue by Month ({CURRENT_YEAR})</div>
             </div>
           </div>
-          {yearlyLoading && <div className="empty-state">Loading…</div>}
+          {yearlyLoading && <PageLoader label="Loading revenue…" compact />}
           {!yearlyLoading && (
             <div className="bar-chart">
               {revenueSeries.map((m) => (
@@ -129,7 +130,7 @@ export function Reports() {
               <div className="card-title">Students by Activity</div>
             </div>
           </div>
-          {activityLoading && <div className="empty-state">Loading…</div>}
+          {activityLoading && <PageLoader label="Loading enrollment…" compact />}
           {!activityLoading && (
             <div className="hbar-list">
               {sortedActivityRows.map((a, i) => (

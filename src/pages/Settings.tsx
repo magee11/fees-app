@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import { Button } from '../components/Button';
+import { PageLoader } from '../components/PageLoader';
+import { ProgressBar } from '../components/ProgressBar';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useSettings, useUpdateSettings, useUploadLogo } from '../hooks/queries/useSettings';
@@ -26,6 +28,7 @@ export function Settings() {
   const uploadLogo = useUploadLogo();
 
   const [form, setForm] = useState<SettingsFormPayload>(EMPTY_FORM);
+  const [logoProgress, setLogoProgress] = useState(0);
 
   useEffect(() => {
     if (settings) {
@@ -53,16 +56,19 @@ export function Settings() {
 
   async function handleLogoChange(file: File | null) {
     if (!file) return;
+    setLogoProgress(0);
     try {
-      await uploadLogo.mutateAsync(file);
+      await uploadLogo.mutateAsync({ file, onProgress: setLogoProgress });
       showToast('Logo updated');
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Failed to upload logo');
+    } finally {
+      setLogoProgress(0);
     }
   }
 
   if (isLoading) {
-    return <div className="fade-up empty-state" style={{ padding: '60px 0' }}>Loading settings…</div>;
+    return <PageLoader label="Loading settings…" />;
   }
 
   if (isError || !settings) {
@@ -97,9 +103,9 @@ export function Settings() {
             )}
           </div>
           {isAdmin && (
-            <div>
+            <div style={{ minWidth: 160 }}>
               <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
-                {uploadLogo.isPending ? 'Uploading…' : 'Upload Logo'}
+                {uploadLogo.isPending ? `Uploading… ${logoProgress}%` : 'Upload Logo'}
                 <input
                   type="file"
                   accept="image/*"
@@ -108,6 +114,11 @@ export function Settings() {
                   disabled={uploadLogo.isPending}
                 />
               </label>
+              {uploadLogo.isPending && (
+                <div style={{ marginTop: 8 }}>
+                  <ProgressBar percent={logoProgress} />
+                </div>
+              )}
             </div>
           )}
         </div>

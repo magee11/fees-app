@@ -4,6 +4,7 @@ import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { PageLoader } from '../components/PageLoader';
 import { UserFormDialog } from '../components/UserFormDialog';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -69,7 +70,7 @@ export function Users() {
           <span />
         </div>
 
-        {isLoading && <div className="empty-state">Loading users…</div>}
+        {isLoading && <PageLoader label="Loading users…" compact />}
         {isError && (
           <div className="empty-state">
             Couldn&apos;t load users.{' '}

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from './client';
+import { apiGet, apiPut, uploadWithProgress } from './client';
 import type { SettingsDTO, SettingsFormPayload } from '../types/api';
 
 export async function getSettings(): Promise<SettingsDTO> {
@@ -11,9 +11,9 @@ export async function updateSettings(payload: SettingsFormPayload): Promise<Sett
   return data.settings;
 }
 
-export async function uploadLogo(file: File): Promise<SettingsDTO> {
+export async function uploadLogo(file: File, onProgress?: (percent: number) => void): Promise<SettingsDTO> {
   const form = new FormData();
   form.append('logo', file);
-  const { data } = await apiPost<{ settings: SettingsDTO }>('/settings/logo', form);
+  const { data } = await uploadWithProgress<{ settings: SettingsDTO }>('/settings/logo', form, { onProgress });
   return data.settings;
 }

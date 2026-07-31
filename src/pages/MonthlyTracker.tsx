@@ -4,6 +4,7 @@ import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Drawer } from '../components/Drawer';
+import { PageLoader } from '../components/PageLoader';
 import { ProgressBar } from '../components/ProgressBar';
 import { useToast } from '../context/ToastContext';
 import { useActivities } from '../hooks/queries/useActivities';
@@ -176,7 +177,7 @@ export function MonthlyTracker() {
           <span className="tracker-balance-col">Outstanding</span>
         </div>
 
-        {isLoading && <div className="empty-state">Loading tracker…</div>}
+        {isLoading && <PageLoader label="Loading tracker…" />}
         {isError && (
           <div className="empty-state">
             Couldn&apos;t load the tracker.{' '}

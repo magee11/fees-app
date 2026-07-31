@@ -3,6 +3,7 @@ import { Search, X, Printer, Download } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
+import { PageLoader } from '../components/PageLoader';
 import { useToast } from '../context/ToastContext';
 import { useStudent, useStudentMonthlyStatus, useStudents } from '../hooks/queries/useStudents';
 import { useCreatePayment } from '../hooks/queries/usePayments';
@@ -221,7 +222,7 @@ export function Payments() {
                 Select Months ({year})
               </div>
               {!activityStatus ? (
-                <div className="empty-state">Loading months…</div>
+                <PageLoader label="Loading months…" compact />
               ) : (
                 <>
                   <div className="month-grid">

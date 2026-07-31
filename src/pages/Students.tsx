@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Upload, Download, Plus, ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { Search, Upload, Download, Plus, ChevronDown, ChevronRight, Pencil, Trash2, CheckSquare } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { ImportStudentsDialog } from '../components/ImportStudentsDialog';
+import { PageLoader } from '../components/PageLoader';
 import { useAddStudentDialog } from '../context/AddStudentContext';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useActivities } from '../hooks/queries/useActivities';
-import { useDeleteStudent, useStudentPaymentHistory, useStudents } from '../hooks/queries/useStudents';
+import {
+  useBulkDeleteStudents,
+  useDeleteStudent,
+  useStudentPaymentHistory,
+  useStudents,
+} from '../hooks/queries/useStudents';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { exportStudents } from '../api/students';
 import { triggerBlobDownload } from '../utils/download';
@@ -19,7 +25,9 @@ import { gradientForId } from '../utils/gradient';
 import type { StudentDTO, StudentStatus } from '../types/api';
 import { ApiError } from '../api/client';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 30] as const;
+type PageSize = (typeof PAGE_SIZE_OPTIONS)[number] | 'all';
+const ALL_PAGE_SIZE_LIMIT = 1000;
 
 const STATUS_TONE: Record<StudentStatus, 'success' | 'neutral' | 'danger'> = {
   active: 'success',
@@ -35,7 +43,7 @@ function PaymentHistoryPanel({ student }: { student: StudentDTO }) {
       <div className="card-kicker" style={{ marginBottom: 10 }}>
         Recent Payments
       </div>
-      {isLoading && <div className="empty-state">Loading…</div>}
+      {isLoading && <PageLoader label="Loading payments…" compact />}
       {!isLoading && (data?.data.length ?? 0) === 0 && <div className="empty-state">No payments yet.</div>}
       {!isLoading && (data?.data.length ?? 0) > 0 && (
         <div className="txn-list">
@@ -64,17 +72,22 @@ export function Students() {
   const [searchInput, setSearchInput] = useState(() => searchParams.get('q') ?? '');
   const [filterActivity, setFilterActivity] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [pageSize, setPageSize] = useState<PageSize>(10);
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { openDialog } = useAddStudentDialog();
   const { showToast } = useToast();
   const { isAdmin } = useAuth();
   const deleteStudent = useDeleteStudent();
+  const bulkDeleteStudents = useBulkDeleteStudents();
 
   const search = useDebouncedValue(searchInput, 350);
-  useEffect(() => setPage(1), [search, filterActivity, filterStatus]);
+  useEffect(() => setPage(1), [search, filterActivity, filterStatus, pageSize]);
+  useEffect(() => setSelectedIds(new Set()), [page, search, filterActivity, filterStatus]);
 
   // Re-sync when navigated here from the header search with a new `?q=` value
   // (route stays mounted, so the useState initializer above won't fire again).
@@ -89,7 +102,7 @@ export function Students() {
 
   const { data, isLoading, isError, refetch } = useStudents({
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize === 'all' ? ALL_PAGE_SIZE_LIMIT : pageSize,
     search: search || undefined,
     activityId: filterActivity === 'all' ? undefined : filterActivity,
     status: filterStatus === 'all' ? undefined : filterStatus,
@@ -106,6 +119,44 @@ export function Students() {
 
   function toggleExpanded(id: string) {
     setExpandedId((prev) => (prev === id ? null : id));
+  }
+
+  function toggleSelectMode() {
+    if (selectMode) setSelectedIds(new Set());
+    setSelectMode((prev) => !prev);
+  }
+
+  const allSelected = students.length > 0 && students.every((s) => selectedIds.has(s._id));
+
+  function toggleSelectAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(students.map((s) => s._id)));
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    const count = selectedIds.size;
+    if (count === 0) return;
+    if (!window.confirm(`Delete ${count} selected student${count > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    try {
+      const result = await bulkDeleteStudents.mutateAsync(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      setExpandedId(null);
+      showToast(
+        result.failed === 0
+          ? `${result.deleted} student${result.deleted > 1 ? 's' : ''} deleted`
+          : `${result.deleted} deleted, ${result.failed} failed`,
+      );
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to delete selected students');
+    }
   }
 
   async function handleDelete(student: StudentDTO) {
@@ -143,6 +194,12 @@ export function Students() {
           <div className="page-subtitle">{meta ? `${meta.total} students found` : '…'}</div>
         </div>
         <div className="page-actions">
+          {isAdmin && (
+            <Button variant="secondary" onClick={toggleSelectMode}>
+              <CheckSquare size={15} />
+              {selectMode ? 'Cancel Select' : 'Select'}
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => setImportOpen(true)}>
             <Upload size={15} />
             Import
@@ -182,13 +239,50 @@ export function Students() {
           <option value="overdue">Overdue</option>
           <option value="inactive">Inactive</option>
         </select>
+        <select
+          className="select"
+          value={pageSize}
+          onChange={(e) => setPageSize(e.target.value === 'all' ? 'all' : (Number(e.target.value) as PageSize))}
+        >
+          {PAGE_SIZE_OPTIONS.map((size) => (
+            <option key={size} value={size}>
+              {size} / page
+            </option>
+          ))}
+          <option value="all">Show All</option>
+        </select>
         <Button variant="ghost" onClick={clearFilters}>
           Clear
         </Button>
       </div>
 
+      {isAdmin && selectMode && selectedIds.size > 0 && (
+        <div className="card bulk-actions-bar">
+          <span className="bulk-actions-count">{selectedIds.size} selected</span>
+          <div className="bulk-actions-buttons">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              Clear selection
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteStudents.isPending}>
+              <Trash2 size={14} />
+              {bulkDeleteStudents.isPending ? 'Deleting…' : 'Delete Selected'}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="card student-list-card">
-        <div className="student-row student-row-header">
+        <div className={`student-row student-row-header${isAdmin && selectMode ? ' has-select' : ''}`}>
+          {isAdmin && selectMode && (
+            <span onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                aria-label="Select all students on this page"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+              />
+            </span>
+          )}
           <span>Student</span>
           <span>Class</span>
           <span>Activities</span>
@@ -198,7 +292,7 @@ export function Students() {
           <span />
         </div>
 
-        {isLoading && <div className="empty-state">Loading students…</div>}
+        {isLoading && <PageLoader label="Loading students…" />}
         {isError && (
           <div className="empty-state">
             Couldn&apos;t load students.{' '}
@@ -217,7 +311,20 @@ export function Students() {
 
           return (
             <div key={s._id} className="student-row-group">
-              <div className="student-row" onClick={() => toggleExpanded(s._id)}>
+              <div
+                className={`student-row${isAdmin && selectMode ? ' has-select' : ''}`}
+                onClick={() => toggleExpanded(s._id)}
+              >
+                {isAdmin && selectMode && (
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${s.name}`}
+                      checked={selectedIds.has(s._id)}
+                      onChange={() => toggleSelect(s._id)}
+                    />
+                  </span>
+                )}
                 <span className="student-cell-name">
                   <Avatar name={s.name} gradient={gradientForId(s._id)} />
                   <span>

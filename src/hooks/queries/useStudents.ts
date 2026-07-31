@@ -75,10 +75,21 @@ export function useDeleteStudent() {
   });
 }
 
+export function useBulkDeleteStudents() {
+  const invalidate = useInvalidateAfterStudentMutation();
+  return useMutation({
+    mutationFn: (ids: string[]) => studentsApi.bulkDeleteStudents(ids),
+    onSuccess: (result) => {
+      if (result.deleted > 0) invalidate();
+    },
+  });
+}
+
 export function useImportStudents() {
   const invalidate = useInvalidateAfterStudentMutation();
   return useMutation({
-    mutationFn: (file: File) => studentsApi.importStudents(file),
+    mutationFn: ({ file, onProgress }: { file: File; onProgress?: (percent: number) => void }) =>
+      studentsApi.importStudents(file, onProgress),
     onSuccess: (result) => {
       if (result.created > 0) invalidate();
     },

@@ -227,6 +227,13 @@ export interface ImportStudentsResult {
   errors: { row: number; message: string }[];
 }
 
+export interface BulkDeleteStudentsResult {
+  totalRequested: number;
+  deleted: number;
+  failed: number;
+  errors: { id: string; message: string }[];
+}
+
 export interface SettingsDTO {
   _id: string;
   schoolName: string;

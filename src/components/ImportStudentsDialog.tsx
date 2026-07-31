@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Dialog } from './Dialog';
 import { Button } from './Button';
+import { ProgressBar } from './ProgressBar';
+import { Spinner } from './Spinner';
 import { useToast } from '../context/ToastContext';
 import { useImportStudents } from '../hooks/queries/useStudents';
 import { downloadImportTemplate } from '../api/students';
@@ -19,10 +21,12 @@ export function ImportStudentsDialog({ open, onClose }: ImportStudentsDialogProp
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ImportStudentsResult | null>(null);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   function handleClose() {
     setFile(null);
     setResult(null);
+    setUploadProgress(0);
     onClose();
   }
 
@@ -41,8 +45,9 @@ export function ImportStudentsDialog({ open, onClose }: ImportStudentsDialogProp
   async function handleUpload() {
     if (!file) return;
     setResult(null);
+    setUploadProgress(0);
     try {
-      const res = await importStudents.mutateAsync(file);
+      const res = await importStudents.mutateAsync({ file, onProgress: setUploadProgress });
       if (res.failed === 0) {
         showToast(`${res.created} student(s) imported successfully`);
         handleClose();
@@ -51,6 +56,8 @@ export function ImportStudentsDialog({ open, onClose }: ImportStudentsDialogProp
       }
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Import failed');
+    } finally {
+      setUploadProgress(0);
     }
   }
 
@@ -73,12 +80,32 @@ export function ImportStudentsDialog({ open, onClose }: ImportStudentsDialogProp
             type="file"
             accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             className="input"
+            disabled={importStudents.isPending}
             onChange={(e) => {
               setFile(e.target.files?.[0] ?? null);
               setResult(null);
             }}
           />
         </div>
+
+        {importStudents.isPending && (
+          <div className="form-field full">
+            {uploadProgress < 100 ? (
+              <>
+                <div className="upload-progress-row">
+                  <span>Uploading…</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <ProgressBar percent={uploadProgress} />
+              </>
+            ) : (
+              <div className="upload-progress-processing">
+                <Spinner size={14} />
+                <span>Processing rows on the server…</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {result && (
           <div className="form-field full import-result">
@@ -104,7 +131,7 @@ export function ImportStudentsDialog({ open, onClose }: ImportStudentsDialogProp
         </Button>
         {!result && (
           <Button variant="primary" onClick={handleUpload} disabled={!file || importStudents.isPending}>
-            {importStudents.isPending ? 'Uploading…' : 'Upload'}
+            {importStudents.isPending ? (uploadProgress < 100 ? `Uploading… ${uploadProgress}%` : 'Processing…') : 'Upload'}
           </Button>
         )}
       </div>

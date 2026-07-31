@@ -1,5 +1,12 @@
-import { apiDelete, apiGet, apiPost, apiPut, requestBlob, type PaginationMeta } from './client';
-import type { ImportStudentsResult, MonthlyStatusEntry, PaymentDTO, StudentDTO, StudentFormPayload } from '../types/api';
+import { apiDelete, apiGet, apiPost, apiPut, requestBlob, uploadWithProgress, type PaginationMeta } from './client';
+import type {
+  BulkDeleteStudentsResult,
+  ImportStudentsResult,
+  MonthlyStatusEntry,
+  PaymentDTO,
+  StudentDTO,
+  StudentFormPayload,
+} from '../types/api';
 
 type BulkFormat = 'excel' | 'csv';
 const BULK_EXTENSIONS: Record<BulkFormat, string> = { excel: 'xlsx', csv: 'csv' };
@@ -39,6 +46,11 @@ export async function deleteStudent(id: string): Promise<void> {
   await apiDelete(`/students/${id}`);
 }
 
+export async function bulkDeleteStudents(ids: string[]): Promise<BulkDeleteStudentsResult> {
+  const { data } = await apiPost<BulkDeleteStudentsResult>('/students/bulk-delete', { ids });
+  return data;
+}
+
 export async function getPaymentHistory(
   id: string,
   params: { page?: number; limit?: number; activityId?: string } = {},
@@ -76,9 +88,12 @@ export async function downloadImportTemplate(format: BulkFormat = 'excel'): Prom
   });
 }
 
-export async function importStudents(file: File): Promise<ImportStudentsResult> {
+export async function importStudents(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<ImportStudentsResult> {
   const form = new FormData();
   form.append('file', file);
-  const { data } = await apiPost<ImportStudentsResult>('/students/import', form);
+  const { data } = await uploadWithProgress<ImportStudentsResult>('/students/import', form, { onProgress });
   return data;
 }

@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { ProgressBar } from '../components/ProgressBar';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EditActivityDialog } from '../components/EditActivityDialog';
+import { PageLoader } from '../components/PageLoader';
 import { activityIcon } from '../components/icons';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -184,7 +185,7 @@ export function Activities() {
         )}
       </div>
 
-      {isLoading && <div className="empty-state">Loading activities…</div>}
+      {isLoading && <PageLoader label="Loading activities…" />}
       {isError && (
         <div className="empty-state">
           Couldn&apos;t load activities.{' '}
